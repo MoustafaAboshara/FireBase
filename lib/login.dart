@@ -12,24 +12,30 @@ class _LoginScreenState extends State<LoginScreen> {
   String email = "";
   String password = "";
   var key = GlobalKey<FormState>();
+  bool isLoading = false;
+  bool obscurePassword = true;
 
-  login(){
+  login() async {
+    if (!key.currentState!.validate()) return;
     key.currentState!.save();
-    FirebaseAuth.
-    instance.
-    signInWithEmailAndPassword(email: email, password: password)
-    .then((data){
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Logged in Successfully"))
+    setState(() => isLoading = true);
+
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
       );
-      Navigator.of(context).pushNamed("home");
-    })
-    .catchError((err){
-      // print("Sorry Something went Wrong ${err}");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Sorry Something went Wrong ${err} "))
+        SnackBar(content: Text("Logged in Successfully")),
       );
-    });
+      Navigator.of(context).pushReplacementNamed("home");
+    } catch (err) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: ${err.toString()}")),
+      );
+    } finally {
+      setState(() => isLoading = false);
+    }
   }
 
   @override
@@ -45,22 +51,47 @@ class _LoginScreenState extends State<LoginScreen> {
           child: ListView(
             children: [
               TextFormField(
-                onSaved: (newValue) {
-                  setState(() {
-                    email = newValue!;
-                  });
-                },
+                decoration: InputDecoration(labelText: "Email"),
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) =>
+                    value!.isEmpty ? "Email is required" : null,
+                onSaved: (newValue) => email = newValue!,
               ),
               TextFormField(
-                obscureText: true,
-                onSaved: (newValue) {
-                  setState(() {
-                    password = newValue!;
-                  });
-                },
+                obscureText: obscurePassword,
+                decoration: InputDecoration(
+                  labelText: "Password",
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        obscurePassword = !obscurePassword;
+                      });
+                    },
+                  ),
+                ),
+                validator: (value) =>
+                    value!.isEmpty ? "Password is required" : null,
+                onSaved: (newValue) => password = newValue!,
               ),
-              SizedBox(height: 50,),
-              ElevatedButton(onPressed: login, child: Text("Login"))
+              SizedBox(height: 50),
+              isLoading
+                  ? Center(child: CircularProgressIndicator())
+                  : ElevatedButton(
+                      onPressed: login,
+                      child: Text("Login"),
+                    ),
+              SizedBox(height: 20),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pushReplacementNamed("register");
+                },
+                child: Text("Don't have an account? Register"),
+              ),
             ],
           ),
         ),

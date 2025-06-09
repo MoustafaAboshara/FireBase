@@ -12,33 +12,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String email = "";
   String password = "";
   var key = GlobalKey<FormState>();
+  bool isLoading = false;
+  bool obscurePassword = true;
 
-  register(){
+  register() async {
+    if (!key.currentState!.validate()) return;
     key.currentState!.save();
-    
-    FirebaseAuth.
-    instance.
-    createUserWithEmailAndPassword(email: email, password: password)
-    .then((data){
+    setState(() => isLoading = true);
+    try {
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email, password: password
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Your Account Added Successfully"))
       );
-      Navigator.of(context).pushNamed("login");
-    })
-    .catchError((err){
-      // print("Sorry Something went Wrong ${err}");
+      Navigator.of(context).pushReplacementNamed("login");
+    } catch (err) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Sorry Something went Wrong ${err} "))
+        SnackBar(content: Text("Error: ${err.toString()}"))
       );
-    });
+    } finally {
+      setState(() => isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Join Us"),
-      ),
+      appBar: AppBar(title: Text("Join Us")),
       body: Form(
         key: key,
         child: Padding(
@@ -46,26 +47,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: ListView(
             children: [
               TextFormField(
-                onSaved: (newValue) {
-                  setState(() {
-                    email = newValue!;
-                  });
-                },
+                decoration: InputDecoration(labelText: "Email"),
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) =>
+                  value!.isEmpty ? "Email is required" : null,
+                onSaved: (newValue) => email = newValue!,
               ),
               TextFormField(
-                obscureText: true,
-                onSaved: (newValue) {
-                  setState(() {
-                    password = newValue!;
-                  });
-                },
+                obscureText: obscurePassword,
+                decoration: InputDecoration(
+                  labelText: "Password",
+                  suffixIcon: IconButton(
+                    icon: Icon(obscurePassword
+                        ? Icons.visibility_off
+                        : Icons.visibility),
+                    onPressed: () {
+                      setState(() {
+                        obscurePassword = !obscurePassword;
+                      });
+                    },
+                  ),
+                ),
+                validator: (value) =>
+                  value!.length < 6 ? "Min 6 characters" : null,
+                onSaved: (newValue) => password = newValue!,
               ),
-              SizedBox(height: 50,),
-              ElevatedButton(onPressed: register, child: Text("Register")),
-              SizedBox(height: 20,),
-              TextButton(onPressed: (){
-                Navigator.of(context).popAndPushNamed("login");
-              }, child: Text("Login"))
+              SizedBox(height: 50),
+              isLoading
+                  ? Center(child: CircularProgressIndicator())
+                  : ElevatedButton(
+                      onPressed: register, child: Text("Register")),
+              SizedBox(height: 20),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pushReplacementNamed("login");
+                },
+                child: Text("Already have an account? Login"),
+              ),
             ],
           ),
         ),
